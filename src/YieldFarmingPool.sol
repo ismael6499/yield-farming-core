@@ -58,6 +58,7 @@ contract YieldFarmingPool is Ownable, ReentrancyGuard {
     error PoolNotActive();
     error InvalidAmount();
     error InsufficientStakedAmount();
+    error NoPendingRewards();
 
     /*
     * @dev Constructor
@@ -268,21 +269,94 @@ contract YieldFarmingPool is Ownable, ReentrancyGuard {
         userHash = abiEncoder.encodeYieldUserHash(poolId, user);
     }
 
+    /**
+    * @dev Returns the number of active pools
+    * @return size Number of active pools
+    */
     function getActivePoolsSize() external view returns(uint256 size){
         size = activePools.length;
     }
 
-    function getActivePools() external view returns(bytes[] memory){
+    /**
+    * @dev Returns an array with all active pool identifiers
+    * @return Array of pool IDs
+    */
+    function getActivePools() external view returns(bytes32[] memory){
         return activePools;
     }
 
+    /**
+    * @dev Returns a specific pool identifier by its index in the activePools array
+    * @param index Index of the pool
+    * @return poolId Pool identifier
+    */
     function getActivePoolId(uint256 index) external view returns(bytes32 poolId){
         poolId = activePools[index];
     }
 
 
+    /**
+    * @dev Allows the owner to withdraw tokens from the contract in case of emergency
+    * @param token Address of the token to withdraw
+    * @param amount Amount to withdraw
+    */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);
+    }
+
+    /**
+    * @dev Updates the reward per token of a pool
+    * @param poolId Pool identifier
+    */  
+    function _updatePool(bytes32 poolId) internal {
+        Pool storage pool = pools[poolId];
+        
+        if (block.timestamp < pool.lastUpdateTime) {
+            return;
+        }
+        
+        if (pool.totalStaked > 0) {
+            uint256 elapsedTime = block.timestamp - pool.lastUpdateTime;
+            uint256 rewards = elapsedTime * pool.rewardRate;
+            pool.rewardPerTokenStored += (rewards * 1e18) / pool.totalStaked;
+        }
+        pool.lastUpdateTime = block.timestamp;
+    }
+
+    /**
+    * @dev Calculates the pending rewards for a user
+    * @param poolId Pool identifier
+    * @param userAddress Address of the user
+    * @return Pending rewards
+    */
+    function _calculatePendingRewards(bytes32 poolId, address userAddress) internal view returns(uint256){
+        Pool storage pool = pools[poolId];
+        UserInfo storage user = userInfo[poolId][userAddress];
+
+        uint256 rewardPerToken = pool.rewardPerTokenStored;
+        
+        if (block.timestamp >= pool.lastUpdateTime && pool.totalStaked > 0) {
+            uint256 elapsedTime = block.timestamp - pool.lastUpdateTime;
+            uint256 rewards = elapsedTime * pool.rewardRate;
+            rewardPerToken += (rewards * 1e18) / pool.totalStaked;
+        }
+
+        return (user.amount * rewardPerToken / 1e18) - user.rewardDebt;
+    }
+
+    /**
+    * @dev Transfers rewards to a user
+    * @param to Address of the user
+    * @param amount Amount of rewards to transfer
+    */
+    function _safeRewardsTransfer(address to, uint256 amount) internal {
+        uint256 rewardBalance = rewardToken.balanceOf(address(this));
+        if (amount > rewardBalance) {
+            amount = rewardBalance;
+        }
+        if(amount > 0){
+            rewardToken.safeTransfer(to, amount);
+        }
     }
 
 }
