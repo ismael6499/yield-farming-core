@@ -490,4 +490,44 @@ contract ABIEncoderDemo {
         poolId = keccak256(data);
         emit EncodedData(poolId, data);
     }
+
+    /**
+     * @dev Encodes pool data using standard ABI encoding
+     * @param token Address of the token
+     * @param totalStaked Total amount staked
+     * @param rewardRate Rate of rewards
+     * @param lastUpdateTime Last time the pool was updated
+     * @param rewardPerTokenStored Stored reward per token
+     * @param isActive Status of the pool
+     * @return encodedData Standard ABI encoded pool data
+     */
+    function encodePoolData(
+        address token,
+        uint256 totalStaked,
+        uint256 rewardRate,
+        uint256 lastUpdateTime,
+        uint256 rewardPerTokenStored,
+        bool isActive
+    ) external pure returns (bytes memory encodedData) {
+        encodedData = abi.encode(
+            token,
+            totalStaked,
+            rewardRate,
+            lastUpdateTime,
+            rewardPerTokenStored,
+            isActive
+        );
+    }
+    /**
+     * @dev Creates a unique hash for a user in a specific pool
+     * @param poolId Pool identifier
+     * @param user User address
+     * @return userHash Unique user hash
+     */
+    function encodeYieldUserHash(
+        bytes32 poolId,
+        address user
+    ) external pure returns (bytes32 userHash) {
+        userHash = keccak256(abi.encodePacked(poolId, user, "YIELD_FARMING_USER"));
+    }
 }
