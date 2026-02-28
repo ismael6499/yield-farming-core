@@ -26,6 +26,16 @@ contract ABIEncoderDemoTest is Test {
 
         assertEq(poolId1, poolId2, "Pool id must be invariant to the order of the tokens");
     }
+
+    /**
+     * @dev Fuzz test to ensure pool ID invariance for any pair of addresses and fees.
+     */
+    function testFuzz_createPoolIdentifier_Invariance(address t1, address t2, uint24 fee) public {
+        bytes32 id1 = abiEncoderDemo.createPoolIdentifier(t1, t2, fee);
+        bytes32 id2 = abiEncoderDemo.createPoolIdentifier(t2, t1, fee);
+        assertEq(id1, id2, "Invariance failed for random addresses/fees");
+    }
+
     
     function test_createPoolIdentifier_DifferentFeeDifferentPoolId() external {
         address tokenA = address(0x1000);
@@ -82,7 +92,7 @@ contract ABIEncoderDemoTest is Test {
         assertEq(keccak256(encodedData), keccak256(expectedEncodedData), "Hash must match");
     }
 
-    function test_encodeSwapData_RevertsOnDifferentLengths() external {
+    function test_RevertWhen_SwapDataLengthsMismatch() external {
         address[] memory path = new address[](3);
         path[0] = address(0x1000);
         path[1] = address(0x2000);
@@ -200,7 +210,7 @@ contract ABIEncoderDemoTest is Test {
         assertEq(strategyData, expectedData);
     }
 
-    function test_encodeYieldStrategy_RevertsOnDifferentLengths() external {
+    function test_RevertWhen_YieldStrategyLengthsMismatch() external {
         string memory strategyName = "StrategyA";
         address[] memory pools = new address[](2);
         uint256[] memory weights = new uint256[](1);
@@ -292,7 +302,7 @@ contract ABIEncoderDemoTest is Test {
 
     // --- Added for Research/Benchmark purposes ---
 
-    function test_encodeStandard_ReturnsCorrectEncoding() external {
+    function test_encodeStandard_ReturnsCorrectEncoding() external view {
         address token = address(0x1234);
         uint256 amount = 1 ether;
 
@@ -302,7 +312,7 @@ contract ABIEncoderDemoTest is Test {
         assertEq(data, expected, "Standard encoding should match abi.encode");
     }
 
-    function test_encodePacked_ReturnsCorrectPackedEncoding() external {
+    function test_encodePacked_ReturnsCorrectPackedEncoding() external view {
         address token = address(0x1234);
         uint256 amount = 1 ether;
 
